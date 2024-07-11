@@ -23,6 +23,14 @@ dependencies {
 
 ### 1. 初始化
 
+在AndroidManifest中声明权限
+
+```xml
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+```
+
+
+
 在你的应用程序中初始化 `SIKNotificationUtils`：
 
 ```kotlin
@@ -31,52 +39,53 @@ import com.sik.notificationutils.SIKNotificationUtils
 class MyApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        SIKNotificationUtils.init(this)
+        SIKNotificationUtils.init(this,配置的通道类)
     }
 }
 ```
 
+新增通知通道配置继承自SIKNotificationChannelConfig用于配置通道或者使用默认通道
+
 ### 2. 请求通知权限（Android 13 及以上）
 
-在需要的地方请求通知权限：
+在需要的地方检查或者请求通知权限：
 
 ```kotlin
-kotlinCopy codeif (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+if (SIKNotificationUtils.isNotificationPermissionGranted(this)) {
+    SIKNotificationUtils.showNotification(this, "测试通知", "测试通知内容")
+} else {
     SIKNotificationUtils.requestNotificationPermission(this)
 }
 ```
 
-### 3. 创建通知渠道（Android 8.0 及以上）
-
-在应用启动时创建通知渠道：
+通知请求返回：
 
 ```kotlin
-kotlinCopy codeSIKNotificationUtils.createNotificationChannel(
-    context = this,
-    channelId = "your_channel_id",
-    channelName = "Your Channel Name",
-    importance = NotificationManager.IMPORTANCE_DEFAULT
-)
+override fun onRequestPermissionsResult(
+    requestCode: Int,
+    permissions: Array<out String>,
+    grantResults: IntArray
+) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    if (requestCode == SIKNotificationUtils.DEFAULT_REQUEST_CODE) {
+        if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+            SIKNotificationUtils.showNotification(this, "测试通知", "测试通知内容")
+        }
+    }
+}
 ```
 
-### 4. 显示通知
+### 3. 显示通知
 
 使用 `SIKNotificationUtils` 创建并显示通知：
 
 ```kotlin
-kotlinCopy codeSIKNotificationUtils.showNotification(
-    context = this,
-    channelId = "your_channel_id",
-    notificationId = 1,
-    title = "通知标题",
-    content = "通知内容",
-    smallIconResId = R.drawable.notification_icon
-)
+SIKNotificationUtils.showNotification(this, "测试通知", "测试通知内容")
 ```
 
 ## 示例项目
 
-可以参考示例项目来了解如何使用 `SIKNotificationUtils`。请访问 [示例项目](https://github.com/SilverIceKey/SIKNotificationUtils)。
+可以参考示例项目来了解如何使用 `SIKNotificationUtils`。请访问 [示例项目](./app/src/main/java/com/sik/notification_sample/MainActivity.kt)。
 
 ## 贡献
 
