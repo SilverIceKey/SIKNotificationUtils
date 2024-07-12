@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.Notification
 import android.app.NotificationChannel
+import android.app.NotificationChannelGroup
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.PackageManager
@@ -42,12 +43,7 @@ object SIKNotificationUtils {
 
     /**
      * 创建或更新通知渠道，仅适用于 Android 8.0 及以上版本
-     * @param context 上下文
-     * @param enableLights 是否启用指示灯
-     * @param enableVibration 是否启用震动
-     * @param importance 通知重要性
-     * @param lockscreenVisibility 是否在锁定屏幕上显示
-     * @param soundUri 通知声音的 Uri（可选）
+     * @param config 通知通道配置
      */
     fun <T : SIKNotificationChannelConfig> createOrUpdateNotificationChannel(config: T) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -66,6 +62,11 @@ object SIKNotificationUtils {
                         vibrationPattern = config.vibrationPattern
                         setShowBadge(config.showBadge)
                         this.lockscreenVisibility = config.lockscreenVisibility
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            if (notificationManager?.getNotificationChannelGroup(config.groupId) != null) {
+                                group = config.groupId
+                            }
+                        }
                         config.soundUri?.let {
                             setSound(it, Notification.AUDIO_ATTRIBUTES_DEFAULT)
                         }
@@ -76,9 +77,72 @@ object SIKNotificationUtils {
                     existingChannel.name = config.channelName
                     existingChannel.description = config.channelDescription
                     existingChannel.importance = config.importance
+                    if (config.groupId == null) {
+                        existingChannel.group = null
+                    }
                     notificationManager?.createNotificationChannel(existingChannel)
                 }
                 notificationIdMap[config::class.java.simpleName] = 0
+            }
+        }
+    }
+
+    /**
+     * 创建或更新通知渠道分组，仅适用于 Android 9.0 及以上版本
+     * @param config 通知通道分组配置
+     */
+    fun <T : SIKNotificationChannelGroupConfig> createOrUpdateNotificationChannelGroup(config: T) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            if (notificationManager == null) {
+                throw NullPointerException("请先调用SIKNotificationUtils.init(context:Context)进行初始化")
+            } else {
+                val existingChannelGroup =
+                    notificationManager?.getNotificationChannelGroup(config.channelGroupId)
+                if (existingChannelGroup == null) {
+                    val channelGroup = NotificationChannelGroup(
+                        config.channelGroupId, config.channelGroupName
+                    ).apply {
+                        description = config.channelGroupDescription
+                    }
+                    notificationManager?.createNotificationChannelGroup(channelGroup)
+                } else {
+                    // 可以更新的属性
+                    existingChannelGroup.description = config.channelGroupDescription
+                    notificationManager?.createNotificationChannelGroup(existingChannelGroup)
+                }
+                notificationIdMap[config::class.java.simpleName] = 0
+            }
+        }
+    }
+
+
+    /**
+     * 给通知通道分组
+     * @param channelConfig 通知通道配置
+     * @param channelGroupConfig 通知通道分组配置 为空则移出分组
+     *
+     */
+    fun <T : SIKNotificationChannelConfig, M : SIKNotificationChannelGroupConfig> setChannelGroup(
+        channelConfig: T, channelGroupConfig: M?
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            setChannelGroup(channelConfig.channelId, channelGroupConfig?.channelGroupId)
+        }
+    }
+
+    /**
+     * 给通知通道分组
+     * @param channelId 通知通道id
+     * @param channelGroupId 通知通道分组id 为空则移出分组
+     */
+    fun setChannelGroup(channelId: String?, channelGroupId: String?) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            if (notificationManager == null) {
+                throw NullPointerException("请先调用SIKNotificationUtils.init(context:Context)进行初始化")
+            }
+            notificationManager?.getNotificationChannel(channelId)?.let {
+                it.group = channelGroupId
+                notificationManager?.createNotificationChannel(it)
             }
         }
     }
@@ -103,6 +167,29 @@ object SIKNotificationUtils {
                 throw NullPointerException("请先调用SIKNotificationUtils.init(context:Context)进行初始化")
             }
             notificationManager?.deleteNotificationChannel(channelId)
+        }
+    }
+
+    /**
+     * 删除通知通道分组
+     * @param config 通知通道分组配置
+     */
+    fun <T : SIKNotificationChannelGroupConfig> deleteNotificationChannelGroup(config: T) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            deleteNotificationChannel(config.channelGroupId)
+        }
+    }
+
+    /**
+     * 删除通知通道分组
+     * @param channelId 通道id
+     */
+    fun deleteNotificationChannelGroup(channelGroupId: String?) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (notificationManager == null) {
+                throw NullPointerException("请先调用SIKNotificationUtils.init(context:Context)进行初始化")
+            }
+            notificationManager?.deleteNotificationChannelGroup(channelGroupId)
         }
     }
 
@@ -170,11 +257,8 @@ object SIKNotificationUtils {
             NotificationCompat.Builder(context)
         }
 
-        builder.setSmallIcon(icon)
-            .setContentTitle(title)
-            .setContentText(content)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setAutoCancel(true)
+        builder.setSmallIcon(icon).setContentTitle(title).setContentText(content)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT).setAutoCancel(true)
 
         with(NotificationManagerCompat.from(context)) {
             notify(notificationId, builder.build())

@@ -20,9 +20,9 @@ import androidx.core.app.NotificationCompat
  * @property showBadge 是否桌面图标显示角标（可选）
  */
 abstract class SIKNotificationChannelConfig(
-    val channelId: String? = null,
-    val channelName: String? = null,
-    val channelDescription: String? = null,
+    val channelId: String = "DefaultChannelId",
+    val channelName: String = "DefaultChannel",
+    val channelDescription: String = "DefaultChannel",
     val enableLights: Boolean = true,
     val enableVibration: Boolean = true,
     val importance: Int = NotificationManager.IMPORTANCE_DEFAULT,
@@ -32,6 +32,7 @@ abstract class SIKNotificationChannelConfig(
     val vibrationPattern: LongArray = LongArray(1).apply {
         this[0] = 300
     },
+    val groupId: String? = null
 ) {
     companion object {
         /**
@@ -39,6 +40,13 @@ abstract class SIKNotificationChannelConfig(
          */
         val defaultChannelConfig by lazy {
             SIKNotificationDefaultChannelConfig()
+        }
+
+        /**
+         * 默认通知通道分组配置
+         */
+        val defaultChannelGroupConfig by lazy {
+            SIKNotificationDefaultChannelGroupConfig()
         }
 
         /**

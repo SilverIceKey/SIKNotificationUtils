@@ -12,11 +12,37 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="添加通知通道" />
+
     <Button
         android:id="@+id/delete_notify_channel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="删除通知通道" />
+
+    <Button
+        android:id="@+id/add_notify_channel_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="添加通知通道分组" />
+
+    <Button
+        android:id="@+id/delete_notify_channel_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="删除通知通道分组" />
+
+    <Button
+        android:id="@+id/add_channel_to_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="分配通知通道到分组" />
+
+    <Button
+        android:id="@+id/remove_channel_from_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="将通知通道从分组中移出" />
+
     <Button
         android:id="@+id/send_notify"
         android:layout_width="wrap_content"
