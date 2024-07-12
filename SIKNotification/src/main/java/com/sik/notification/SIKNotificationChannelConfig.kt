@@ -1,6 +1,7 @@
 package com.sik.notification
 
 import android.app.NotificationManager
+import android.media.RingtoneManager
 import android.net.Uri
 import androidx.core.app.NotificationCompat
 
@@ -16,6 +17,7 @@ import androidx.core.app.NotificationCompat
  * @property importance 通知重要性，取值范围为 [NotificationManager.IMPORTANCE_NONE], [NotificationManager.IMPORTANCE_MIN], [NotificationManager.IMPORTANCE_LOW], [NotificationManager.IMPORTANCE_DEFAULT], [NotificationManager.IMPORTANCE_HIGH], [NotificationManager.IMPORTANCE_MAX]
  * @property lockscreenVisibility 是否在锁定屏幕上显示通知，取值范围为 [NotificationCompat.VISIBILITY_SECRET], [NotificationCompat.VISIBILITY_PRIVATE], [NotificationCompat.VISIBILITY_PUBLIC]
  * @property soundUri 通知声音的 Uri（可选）
+ * @property showBadge 是否桌面图标显示角标（可选）
  */
 abstract class SIKNotificationChannelConfig(
     val channelId: String? = null,
@@ -25,7 +27,11 @@ abstract class SIKNotificationChannelConfig(
     val enableVibration: Boolean = true,
     val importance: Int = NotificationManager.IMPORTANCE_DEFAULT,
     val lockscreenVisibility: Int = NotificationCompat.VISIBILITY_PRIVATE,
-    val soundUri: Uri? = null
+    val soundUri: Uri? = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), // 默认通知声音
+    val showBadge: Boolean = true,
+    val vibrationPattern: LongArray = LongArray(1).apply {
+        this[0] = 300
+    },
 ) {
     companion object {
         /**
@@ -33,6 +39,13 @@ abstract class SIKNotificationChannelConfig(
          */
         val defaultChannelConfig by lazy {
             SIKNotificationDefaultChannelConfig()
+        }
+
+        /**
+         * 懒加载的具体子类实例
+         */
+        inline fun <reified T : SIKNotificationChannelConfig> instance(): T {
+            return T::class.java.getDeclaredConstructor().newInstance()
         }
     }
 }

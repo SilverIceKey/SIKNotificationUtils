@@ -1,5 +1,7 @@
 # SIKNotificationUtils
 
+[![](https://jitpack.io/v/SilverIceKey/SIKNotificationUtils.svg)](https://jitpack.io/#SilverIceKey/SIKNotificationUtils)
+
 `SIKNotificationUtils` 是一个用于 Android 的通知工具库，旨在简化和增强通知的创建和管理。通过该工具库，开发者可以轻松地在应用中实现各种类型的通知，并提供了一些实用的功能，如快速创建通知、处理通知权限等。
 
 ## 特性

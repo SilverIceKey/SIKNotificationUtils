@@ -3,13 +3,12 @@ package com.sik.notification
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.NameNotFoundException
-import android.media.AudioAttributes
-import android.net.Uri
 import android.os.Build
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
@@ -21,32 +20,24 @@ object SIKNotificationUtils {
     const val DEFAULT_REQUEST_CODE = 100
 
     private var appIcon: Int = 0
-    private var channelId: String = ""
-    private var channelName: String = ""
-    private var channelDescription: String = ""
+
+    /**
+     * 通道管理器
+     */
+    private var notificationManager: NotificationManager? = null
+
+    /**
+     * 不同配置的通知id从1开始自增
+     */
+    private val notificationIdMap: HashMap<String, Int> = hashMapOf()
 
     /**
      * 初始化通知工具库
      * @param context 上下文
-     * @param channelConfig 通知渠道配置
      */
-    fun init(
-        context: Context,
-        channelConfig: SIKNotificationChannelConfig = SIKNotificationChannelConfig.defaultChannelConfig
-    ) {
-        this.channelId = channelConfig.channelId ?: context.packageName
-        this.channelName = channelConfig.channelName ?: getAppName(context)
-        this.channelDescription =
-            channelConfig.channelDescription ?: "Channel for ${getAppName(context)} notifications"
-        createOrUpdateNotificationChannel(
-            context,
-            channelConfig.enableLights,
-            channelConfig.enableVibration,
-            channelConfig.importance,
-            channelConfig.lockscreenVisibility,
-            channelConfig.soundUri
-        )
+    fun init(context: Context) {
         appIcon = getApplicationIcon(context)
+        notificationManager = context.getSystemService(NotificationManager::class.java)
     }
 
     /**
@@ -58,46 +49,60 @@ object SIKNotificationUtils {
      * @param lockscreenVisibility 是否在锁定屏幕上显示
      * @param soundUri 通知声音的 Uri（可选）
      */
-    private fun createOrUpdateNotificationChannel(
-        context: Context,
-        enableLights: Boolean,
-        enableVibration: Boolean,
-        importance: Int,
-        lockscreenVisibility: Int,
-        soundUri: Uri?
-    ) {
+    fun <T : SIKNotificationChannelConfig> createOrUpdateNotificationChannel(config: T) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationManager: NotificationManager =
-                context.getSystemService(NotificationManager::class.java)
-
-            val existingChannel = notificationManager.getNotificationChannel(channelId)
-
-            if (existingChannel == null) {
-                val channel = NotificationChannel(channelId, channelName, importance).apply {
-                    description = channelDescription
-                    enableLights(enableLights)
-                    enableVibration(enableVibration)
-                    this.lockscreenVisibility = lockscreenVisibility
-                    soundUri?.let {
-                        val audioAttributes = AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .build()
-                        setSound(it, audioAttributes)
-                    }
-                }
-                notificationManager.createNotificationChannel(channel)
+            if (notificationManager == null) {
+                throw NullPointerException("请先调用SIKNotificationUtils.init(context:Context)进行初始化")
             } else {
-                // 可以更新的属性
-                existingChannel.enableLights(enableLights)
-                existingChannel.enableVibration(enableVibration)
-                existingChannel.setSound(soundUri, AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build())
 
-                notificationManager.createNotificationChannel(existingChannel)
+                val existingChannel = notificationManager?.getNotificationChannel(config.channelId)
+                if (existingChannel == null) {
+                    val channel = NotificationChannel(
+                        config.channelId, config.channelName, config.importance
+                    ).apply {
+                        description = config.channelDescription
+                        enableLights(config.enableLights)
+                        enableVibration(config.enableVibration)
+                        vibrationPattern = config.vibrationPattern
+                        setShowBadge(config.showBadge)
+                        this.lockscreenVisibility = config.lockscreenVisibility
+                        config.soundUri?.let {
+                            setSound(it, Notification.AUDIO_ATTRIBUTES_DEFAULT)
+                        }
+                    }
+                    notificationManager?.createNotificationChannel(channel)
+                } else {
+                    // 可以更新的属性
+                    existingChannel.name = config.channelName
+                    existingChannel.description = config.channelDescription
+                    existingChannel.importance = config.importance
+                    notificationManager?.createNotificationChannel(existingChannel)
+                }
+                notificationIdMap[config::class.java.simpleName] = 0
             }
+        }
+    }
+
+    /**
+     * 删除通知通道
+     * @param config 通知通道配置
+     */
+    fun <T : SIKNotificationChannelConfig> deleteNotificationChannel(config: T) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            deleteNotificationChannel(config.channelId)
+        }
+    }
+
+    /**
+     * 删除通知通道
+     * @param channelId 通道id
+     */
+    fun deleteNotificationChannel(channelId: String?) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (notificationManager == null) {
+                throw NullPointerException("请先调用SIKNotificationUtils.init(context:Context)进行初始化")
+            }
+            notificationManager?.deleteNotificationChannel(channelId)
         }
     }
 
@@ -110,8 +115,7 @@ object SIKNotificationUtils {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val permission = Manifest.permission.POST_NOTIFICATIONS
             if (ContextCompat.checkSelfPermission(
-                    activity,
-                    permission
+                    activity, permission
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
                 ActivityCompat.requestPermissions(activity, arrayOf(permission), requestCode)
@@ -127,8 +131,7 @@ object SIKNotificationUtils {
     fun isNotificationPermissionGranted(context: Context): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS
+                context, Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
         } else {
             true // 低于 Android 13 默认授予通知权限
@@ -141,25 +144,44 @@ object SIKNotificationUtils {
      * @param title 通知标题
      * @param content 通知内容
      * @param icon 通知图标资源 ID（可选）
+     * @return Boolean 如果通知通道不存在则返回false
      */
     @SuppressLint("MissingPermission")
-    fun showNotification(
-        context: Context,
-        title: String,
-        content: String,
-        icon: Int = appIcon
-    ) {
-        val notificationId = 1
+    fun <T : SIKNotificationChannelConfig> showNotification(
+        context: Context, config: T, title: String, content: String, icon: Int = appIcon
+    ): Boolean {
+        if (config.channelId.isNullOrEmpty()) {
+            return false
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (notificationManager == null) {
+                throw NullPointerException("请先调用SIKNotificationUtils.init(context:Context)进行初始化")
+            }
+            if (notificationManager?.getNotificationChannel(config.channelId) == null) {
+                createOrUpdateNotificationChannel(config)
+            }
+        }
 
-        val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(icon) // 使用应用的默认图标或传入的图标
+        val notificationId = (notificationIdMap[config::class.java.simpleName] ?: 0) + 1
+
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationCompat.Builder(context, config.channelId)
+        } else {
+            NotificationCompat.Builder(context)
+        }
+
+        builder.setSmallIcon(icon)
             .setContentTitle(title)
             .setContentText(content)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
 
         with(NotificationManagerCompat.from(context)) {
             notify(notificationId, builder.build())
         }
+
+        notificationIdMap[config::class.java.simpleName] = notificationId
+        return true
     }
 
     /**

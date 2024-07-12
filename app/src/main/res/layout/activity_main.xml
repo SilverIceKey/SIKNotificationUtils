@@ -8,6 +8,16 @@
     tools:context=".MainActivity">
 
     <Button
+        android:id="@+id/add_notify_channel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="添加通知通道" />
+    <Button
+        android:id="@+id/delete_notify_channel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="删除通知通道" />
+    <Button
         android:id="@+id/send_notify"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

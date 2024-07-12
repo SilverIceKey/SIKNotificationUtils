@@ -11,6 +11,7 @@ appcompat = "1.7.0"
 material = "1.12.0"
 activity = "1.9.0"
 constraintlayout = "2.1.4"
+siksensors = "1.0.71"
 
 [libraries]
 android-maven-gradle-plugin = { module = "com.github.dcendents:android-maven-gradle-plugin", version.ref = "androidMavenGradlePlugin" }
@@ -23,6 +24,7 @@ androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+siksensors = { module = "com.github.SilverIceKey.SIKExtension:SIKCore", version.ref = "siksensors" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
