@@ -135,16 +135,21 @@ object SIKNotificationUtils {
      * @param channelId 通知通道id
      * @param channelGroupId 通知通道分组id 为空则移出分组
      */
-    fun setChannelGroup(channelId: String?, channelGroupId: String?) {
+    fun setChannelGroup(channelId: String?, channelGroupId: String?): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             if (notificationManager == null) {
                 throw NullPointerException("请先调用SIKNotificationUtils.init(context:Context)进行初始化")
             }
-            notificationManager?.getNotificationChannel(channelId)?.let {
-                it.group = channelGroupId
-                notificationManager?.createNotificationChannel(it)
+            try {
+                notificationManager?.getNotificationChannel(channelId)?.let {
+                    it.group = channelGroupId
+                    notificationManager?.createNotificationChannel(it)
+                }
+            } catch (e: Exception) {
+                return false
             }
         }
+        return true
     }
 
     /**

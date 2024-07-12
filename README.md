@@ -89,6 +89,10 @@ SIKNotificationUtils.showNotification(this, "测试通知", "测试通知内容"
 
 可以参考示例项目来了解如何使用 `SIKNotificationUtils`。请访问 [示例项目](./app/src/main/java/com/sik/notification_sample/MainActivity.kt)。
 
+## 已知的问题
+
+已知的一些问题我会在[问题集](./KNOWN_ISSUES.md)中列出
+
 ## 贡献
 
 欢迎贡献代码！请阅读 [CONTRIBUTING.md](./CONTRIBUTING.md) 了解详细的贡献流程。
