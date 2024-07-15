@@ -305,4 +305,51 @@ object SIKNotificationUtils {
             "UnKnownApp"
         }
     }
+
+
+    /**
+     * 显示通知
+     * @param context 上下文
+     * @param title 通知标题
+     * @param content 通知内容
+     * @param icon 通知图标资源 ID（可选）
+     * @return Boolean 如果通知通道不存在则返回false
+     */
+    @SuppressLint("MissingPermission")
+    fun <T : SIKNotificationChannelConfig> Context.showNotification(
+        config: T,
+        title: String,
+        content: String,
+        icon: Int = appIcon
+    ): Boolean {
+        if (config.channelId.isNullOrEmpty()) {
+            return false
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (notificationManager == null) {
+                throw NullPointerException("请先调用SIKNotificationUtils.init(context:Context)进行初始化")
+            }
+            if (notificationManager?.getNotificationChannel(config.channelId) == null) {
+                createOrUpdateNotificationChannel(config)
+            }
+        }
+
+        val notificationId = (notificationIdMap[config::class.java.simpleName] ?: 0) + 1
+
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationCompat.Builder(this, config.channelId)
+        } else {
+            NotificationCompat.Builder(this)
+        }
+
+        builder.setSmallIcon(icon).setContentTitle(title).setContentText(content)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT).setAutoCancel(true)
+
+        with(NotificationManagerCompat.from(this)) {
+            notify(notificationId, builder.build())
+        }
+
+        notificationIdMap[config::class.java.simpleName] = notificationId
+        return true
+    }
 }
