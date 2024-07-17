@@ -2,7 +2,8 @@
 
 [![](https://jitpack.io/v/SilverIceKey/SIKNotificationUtils.svg)](https://jitpack.io/#SilverIceKey/SIKNotificationUtils)
 
-`SIKNotificationUtils` 是一个用于 Android 的通知工具库，旨在简化和增强通知的创建和管理。通过该工具库，开发者可以轻松地在应用中实现各种类型的通知，并提供了一些实用的功能，如快速创建通知、处理通知权限等。
+`SIKNotificationUtils` 是一个用于 Android
+的通知工具库，旨在简化和增强通知的创建和管理。通过该工具库，开发者可以轻松地在应用中实现各种类型的通知，并提供了一些实用的功能，如快速创建通知、处理通知权限等。
 
 ## 特性
 
@@ -25,13 +26,12 @@ dependencies {
 
 ### 1. 初始化
 
-在AndroidManifest中声明权限
+在AndroidManifest中声明权限和注册通知，如果需要
 
 ```xml
+
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 ```
-
-
 
 在你的应用程序中初始化 `SIKNotificationUtils`：
 
@@ -41,7 +41,7 @@ import com.sik.notificationutils.SIKNotificationUtils
 class MyApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        SIKNotificationUtils.init(this,配置的通道类)
+        SIKNotificationUtils.init(this, 配置的通道类)
     }
 }
 ```
@@ -77,7 +77,26 @@ override fun onRequestPermissionsResult(
 }
 ```
 
-### 3. 显示通知
+### 3. 设置通知清除监听（可选）
+
+在AndroidManifest中设置删除监听器
+
+```xml
+
+<receiver android:name="com.sik.notification.SIKNotificationDeleteReceiver" android:exported="true">
+    <intent-filter>
+        <action android:name="ACTION_SIK_NOTIFICATION_DELETED_RECEIVER" />
+    </intent-filter>
+</receiver>
+```
+
+然后调用下面的方法设置监听
+
+```kotlin
+SIKNotificationDeleteReceiver.setNotificationDeleteListener { context, intent -> }
+```
+
+### 4. 显示通知
 
 使用 `SIKNotificationUtils` 创建并显示通知：
 
@@ -87,7 +106,8 @@ SIKNotificationUtils.showNotification(this, "测试通知", "测试通知内容"
 
 ## 示例项目
 
-可以参考示例项目来了解如何使用 `SIKNotificationUtils`。请访问 [示例项目](./app/src/main/java/com/sik/notification_sample/MainActivity.kt)。
+可以参考示例项目来了解如何使用 `SIKNotificationUtils`
+。请访问 [示例项目](./app/src/main/java/com/sik/notification_sample/MainActivity.kt)。
 
 ## 已知的问题
 

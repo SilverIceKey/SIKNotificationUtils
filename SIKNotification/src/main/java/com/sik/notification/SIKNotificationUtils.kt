@@ -7,7 +7,9 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationChannelGroup
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.NameNotFoundException
 import android.os.Build
@@ -16,11 +18,18 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 
+
 object SIKNotificationUtils {
 
     const val DEFAULT_REQUEST_CODE = 100
 
     private var appIcon: Int = 0
+
+    /**
+     * 通知删除接收器ACTION
+     */
+    private const val ACTION_SIK_NOTIFICATION_DELETED_RECEIVER =
+        "ACTION_SIK_NOTIFICATION_DELETED_RECEIVER"
 
     /**
      * 通道管理器
@@ -269,6 +278,8 @@ object SIKNotificationUtils {
      * @param context 上下文
      * @param title 通知标题
      * @param content 通知内容
+     * @param clickIntent 通知跳转意图
+     * @param appointNotificationId 指定通知id
      * @param icon 通知图标资源 ID（可选）
      * @return Boolean 如果通知通道不存在则返回false
      */
@@ -277,9 +288,11 @@ object SIKNotificationUtils {
         config: T,
         title: String,
         content: String,
-        icon: Int = appIcon
+        clickIntent: Intent,
+        appointNotificationId: Int = -1,
+        icon: Int = appIcon,
     ): Boolean {
-        if (config.channelId.isNullOrEmpty()) {
+        if (config.channelId.isEmpty()) {
             return false
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -291,8 +304,22 @@ object SIKNotificationUtils {
             }
         }
 
-        val notificationId = (notificationIdMap[config::class.java.simpleName] ?: 0) + 1
-
+        val notificationId = if (appointNotificationId == -1) {
+            (notificationIdMap[config::class.java.simpleName] ?: 0) + 1
+        } else {
+            appointNotificationId
+        }
+        val deleteIntent = Intent(
+            this,
+            SIKNotificationDeleteReceiver::class.java
+        )
+        deleteIntent.setAction(ACTION_SIK_NOTIFICATION_DELETED_RECEIVER)
+        val deletePendingIntent =
+            PendingIntent.getBroadcast(this, 0, deleteIntent, PendingIntent.FLAG_IMMUTABLE)
+        val clickPendingIntent =
+            PendingIntent.getActivity(this, 0, clickIntent, PendingIntent.FLAG_IMMUTABLE)
+        deleteIntent.putExtra(SIKNotificationParams.INTENT_KEY_NOTIFICATION_ID, notificationId)
+        clickIntent.putExtra(SIKNotificationParams.INTENT_KEY_NOTIFICATION_ID, notificationId)
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationCompat.Builder(this, config.channelId)
         } else {
@@ -300,7 +327,10 @@ object SIKNotificationUtils {
         }
 
         builder.setSmallIcon(icon).setContentTitle(title).setContentText(content)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT).setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setDeleteIntent(deletePendingIntent)
+            .setContentIntent(clickPendingIntent)
+            .setAutoCancel(true)
 
         with(NotificationManagerCompat.from(this)) {
             notify(notificationId, builder.build())

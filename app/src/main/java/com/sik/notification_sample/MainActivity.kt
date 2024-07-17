@@ -1,11 +1,15 @@
 package com.sik.notification_sample
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.sik.notification.SIKNotificationDeleteReceiver
+import com.sik.notification.SIKNotificationParams
 import com.sik.notification.SIKNotificationUtils
 import com.sik.notification.SIKNotificationUtils.showNotification
 
@@ -53,13 +57,25 @@ class MainActivity : AppCompatActivity() {
         removeChannelFromGroup.setOnClickListener {
             SIKNotificationUtils.setChannelGroup(NotificationChannelConfig.config, null)
         }
+        SIKNotificationDeleteReceiver.setNotificationDeleteListener { context, intent ->
+            Toast.makeText(
+                this,
+                "通知被删除,通知id:${
+                    intent?.getIntExtra(
+                        SIKNotificationParams.INTENT_KEY_NOTIFICATION_ID,
+                        0
+                    )
+                }",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
         sendNotify.setOnClickListener {
             if (SIKNotificationUtils.isNotificationPermissionGranted(this)) {
-                SIKNotificationUtils.showNotification(
-                    this,
+                showNotification(
                     NotificationChannelConfig.config,
                     "测试通知",
-                    "测试通知内容"
+                    "测试通知内容",
+                    Intent(this, ClickActivity::class.java)
                 )
             } else {
                 SIKNotificationUtils.requestNotificationPermission(this)

@@ -18,6 +18,10 @@
         android:theme="@style/Theme.SIKNotificationUtils"
         tools:targetApi="31">
         <activity
+            android:name=".ClickActivity"
+            android:exported="true"
+            android:launchMode="singleTask" />
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
@@ -26,6 +30,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <receiver
+            android:name="com.sik.notification.SIKNotificationDeleteReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="ACTION_SIK_NOTIFICATION_DELETED_RECEIVER" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>
