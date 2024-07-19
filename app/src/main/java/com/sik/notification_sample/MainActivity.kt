@@ -1,17 +1,27 @@
 package com.sik.notification_sample
 
+import android.animation.ValueAnimator
 import android.content.Intent
 import android.os.Bundle
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.LinearInterpolator
 import android.widget.Button
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.NotificationCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.sik.notification.SIKNotificationConfig
 import com.sik.notification.SIKNotificationDeleteReceiver
 import com.sik.notification.SIKNotificationParams
 import com.sik.notification.SIKNotificationUtils
+import com.sik.notification.SIKNotificationUtils.isNotificationEnabled
+import com.sik.notification.SIKNotificationUtils.openNotificationSettings
 import com.sik.notification.SIKNotificationUtils.showNotification
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -71,15 +81,68 @@ class MainActivity : AppCompatActivity() {
         }
         sendNotify.setOnClickListener {
             if (SIKNotificationUtils.isNotificationPermissionGranted(this)) {
+                val notificationConfig = SIKNotificationConfig(
+                    title = "测试通知",
+                    content = "测试通知内容",
+                    clickIntent = Intent(this, ClickActivity::class.java),
+                    isProgressNotification = true,
+                    isCustomView = false,
+                    priority = NotificationCompat.PRIORITY_LOW,
+                    customContentView = R.layout.layout_large_notification,
+                    customBigContentView = R.layout.layout_large_notification,
+                    customHeadsUpContentView = R.layout.layout_small_notification
+                )
                 showNotification(
                     NotificationChannelConfig.config,
-                    "测试通知",
-                    "测试通知内容",
-                    Intent(this, ClickActivity::class.java)
+                    notificationConfig
                 )
+                startDownload(notificationConfig) {
+                    if (notificationConfig.isProgressNotification && notificationConfig.progressData.isDismiss()) {
+                        SIKNotificationUtils.cancelNotify(notificationConfig)
+                    } else {
+                        showNotification(NotificationChannelConfig.config, notificationConfig)
+                    }
+                }
             } else {
                 SIKNotificationUtils.requestNotificationPermission(this)
             }
+        }
+    }
+
+    private fun startDownload(notificationConfig: SIKNotificationConfig, onUpdate: () -> Unit) {
+        MainScope().launch {
+            delay(1000)
+            runOnUiThread {
+                ValueAnimator.ofInt(0, 100).apply {
+                    duration = 4000
+                    interpolator = LinearInterpolator()
+                    addUpdateListener {
+                        if (it.animatedValue == 0) {
+                            notificationConfig.progressData.setMaxProgress(100)
+                        } else if (it.animatedValue == 100) {
+                            notificationConfig.progressData.dismiss()
+                        } else {
+                            notificationConfig.progressData.setProgress(it.animatedValue as Int)
+                        }
+                        onUpdate()
+                    }
+                    start()
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val isNotificationEnabled = isNotificationEnabled()
+        if (!isNotificationEnabled) {
+            openNotificationSettings()
+        } else {
+            Toast.makeText(
+                this,
+                "通知是否开启:${isNotificationEnabled()}",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 }

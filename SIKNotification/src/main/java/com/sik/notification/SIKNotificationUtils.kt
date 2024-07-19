@@ -12,7 +12,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.NameNotFoundException
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
+import android.text.TextUtils
+import android.widget.RemoteViews
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -272,6 +276,48 @@ object SIKNotificationUtils {
         }
     }
 
+    /**
+     * 检查应用的通知是否被启用
+     *
+     * @param context 应用上下文
+     * @return 如果通知被启用则返回 true，否则返回 false
+     */
+    fun Context.isNotificationEnabled(): Boolean {
+        val notificationManager =
+            this.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // 对于 Android O 及以上版本
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val importance = notificationManager.importance
+            return importance != NotificationManager.IMPORTANCE_NONE
+        }
+
+        // 对于 Android O 以下版本
+        val enabledListeners =
+            Settings.Secure.getString(this.contentResolver, "enabled_notification_listeners")
+        val packageName = this.packageName
+        return !TextUtils.isEmpty(enabledListeners) && enabledListeners.contains(packageName)
+    }
+
+    /**
+     * 跳转到应用的通知设置界面
+     *
+     * @param context 应用上下文
+     */
+    fun Context.openNotificationSettings() {
+        val intent = Intent()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // 对于 Android O 及以上版本
+            intent.action = Settings.ACTION_APP_NOTIFICATION_SETTINGS
+            intent.putExtra(Settings.EXTRA_APP_PACKAGE, this.packageName)
+        } else {
+            // 对于 Android O 以下版本
+            intent.action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+            intent.addCategory(Intent.CATEGORY_DEFAULT)
+            intent.data = Uri.parse("package:" + this.packageName)
+        }
+        this.startActivity(intent)
+    }
 
     /**
      * 显示通知
@@ -285,30 +331,28 @@ object SIKNotificationUtils {
      */
     @SuppressLint("MissingPermission")
     fun <T : SIKNotificationChannelConfig> Context.showNotification(
-        config: T,
-        title: String,
-        content: String,
-        clickIntent: Intent,
-        appointNotificationId: Int = -1,
+        channelConfig: T,
+        notificationConfig: SIKNotificationConfig,
         icon: Int = appIcon,
     ): Boolean {
-        if (config.channelId.isEmpty()) {
+        if (channelConfig.channelId.isEmpty()) {
             return false
         }
+        if (notificationManager == null) {
+            throw NullPointerException("请先调用SIKNotificationUtils.init(context:Context)进行初始化")
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (notificationManager == null) {
-                throw NullPointerException("请先调用SIKNotificationUtils.init(context:Context)进行初始化")
-            }
-            if (notificationManager?.getNotificationChannel(config.channelId) == null) {
-                createOrUpdateNotificationChannel(config)
+            if (notificationManager?.getNotificationChannel(channelConfig.channelId) == null) {
+                createOrUpdateNotificationChannel(channelConfig)
             }
         }
 
-        val notificationId = if (appointNotificationId == -1) {
-            (notificationIdMap[config::class.java.simpleName] ?: 0) + 1
+        val notificationId = if (notificationConfig.appointNotificationId == -1) {
+            (notificationIdMap[channelConfig::class.java.simpleName] ?: 0) + 1
         } else {
-            appointNotificationId
+            notificationConfig.appointNotificationId
         }
+        notificationConfig.appointNotificationId = notificationId
         val deleteIntent = Intent(
             this,
             SIKNotificationDeleteReceiver::class.java
@@ -316,27 +360,86 @@ object SIKNotificationUtils {
         deleteIntent.setAction(ACTION_SIK_NOTIFICATION_DELETED_RECEIVER)
         val deletePendingIntent =
             PendingIntent.getBroadcast(this, 0, deleteIntent, PendingIntent.FLAG_IMMUTABLE)
-        val clickPendingIntent =
-            PendingIntent.getActivity(this, 0, clickIntent, PendingIntent.FLAG_IMMUTABLE)
+        val clickPendingIntent = notificationConfig.clickIntent?.let { clickIntent ->
+            clickIntent.putExtra(
+                SIKNotificationParams.INTENT_KEY_NOTIFICATION_ID,
+                notificationId
+            )
+            PendingIntent.getActivity(
+                this,
+                0,
+                clickIntent,
+                PendingIntent.FLAG_IMMUTABLE
+            )
+        }
+
         deleteIntent.putExtra(SIKNotificationParams.INTENT_KEY_NOTIFICATION_ID, notificationId)
-        clickIntent.putExtra(SIKNotificationParams.INTENT_KEY_NOTIFICATION_ID, notificationId)
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationCompat.Builder(this, config.channelId)
+            NotificationCompat.Builder(this, channelConfig.channelId)
         } else {
             NotificationCompat.Builder(this)
         }
 
-        builder.setSmallIcon(icon).setContentTitle(title).setContentText(content)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+        builder.setSmallIcon(icon)
+            .apply {
+                if (notificationConfig.isCustomView) {
+                    val customContentView =
+                        RemoteViews(
+                            packageName,
+                            notificationConfig.customContentView
+                        )
+                    val customBigContentView =
+                        RemoteViews(
+                            packageName,
+                            notificationConfig.customBigContentView
+                        )
+                    val customHeadsUpContentView =
+                        RemoteViews(
+                            packageName,
+                            notificationConfig.customHeadsUpContentView
+                        )
+                    this.setCustomContentView(customContentView)
+                        .setCustomBigContentView(customBigContentView)
+                        .setCustomHeadsUpContentView(customHeadsUpContentView)
+                        .setContent(customContentView)
+                        .setStyle(notificationConfig.style)
+                } else {
+                    this.setContentTitle(notificationConfig.title)
+                        .setContentText(notificationConfig.content)
+                    if (notificationConfig.isProgressNotification) {
+                        this.setProgress(
+                            notificationConfig.progressData.getMaxProgress(),
+                            notificationConfig.progressData.getCurrentProgress(),
+                            notificationConfig.progressData.getIndeterminate()
+                        )
+                    }
+                }
+                if (clickPendingIntent != null) {
+                    this.setContentIntent(clickPendingIntent)
+                }
+            }
+            .setDefaults(notificationConfig.default)
+            .setPriority(notificationConfig.priority)
+            .setOnlyAlertOnce(notificationConfig.onlyAlertOnce)
+            .setOngoing(notificationConfig.onGoing)
             .setDeleteIntent(deletePendingIntent)
-            .setContentIntent(clickPendingIntent)
             .setAutoCancel(true)
 
         with(NotificationManagerCompat.from(this)) {
             notify(notificationId, builder.build())
         }
 
-        notificationIdMap[config::class.java.simpleName] = notificationId
+        notificationIdMap[channelConfig::class.java.simpleName] = notificationId
         return true
+    }
+
+    /**
+     * 关闭通知
+     */
+    fun cancelNotify(notificationConfig: SIKNotificationConfig) {
+        if (notificationManager == null) {
+            throw NullPointerException("请先调用SIKNotificationUtils.init(context:Context)进行初始化")
+        }
+        notificationManager?.cancel(notificationConfig.appointNotificationId)
     }
 }
